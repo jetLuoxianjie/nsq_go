@@ -44,38 +44,38 @@ func nsqGoHttpGet(url string) []byte {
 
 //调试日志接口
 func nsqGoLogDebug(msg string, fields ...zap.Field) {
-	if Logger == nil {
-		log.Println("nsqGo Logger nil")
+	if myLogger == nil {
+		log.Println("nsqGo myLogger nil")
 		return
 	}
-	Logger.Debug(msg, fields...)
+	myLogger.Debug(msg, fields...)
 }
 
 //关键信息日志接口
 func nsqGoLogInfo(msg string, fields ...zap.Field) {
-	if Logger == nil {
-		log.Println("nsqGo Logger nil")
+	if myLogger == nil {
+		log.Println("nsqGo myLogger nil")
 		return
 	}
-	Logger.Info(msg, fields...)
+	myLogger.Info(msg, fields...)
 }
 
 //警告信息日志接口
 func nsqGoLogWarn(msg string, fields ...zap.Field) {
-	if Logger == nil {
-		log.Println("nsqGo Logger nil")
+	if myLogger == nil {
+		log.Println("nsqGo myLogger nil")
 		return
 	}
-	Logger.Warn(msg, fields...)
+	myLogger.Warn(msg, fields...)
 }
 
 //错误信息日志接口
 func nsqGoLogError(msg string, fields ...zap.Field) {
-	if Logger == nil {
-		log.Println("nsqGo Logger nil")
+	if myLogger == nil {
+		log.Println("nsqGo myLogger nil")
 		return
 	}
-	Logger.Error(msg, fields...)
+	myLogger.Error(msg, fields...)
 }
 
 func nsqGoSetTimeout(interval int, fn func(...interface{}) int, args ...interface{}) {
