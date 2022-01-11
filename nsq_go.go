@@ -29,3 +29,6 @@ func NsqGoStart(NsqlookupHttpAddress []string, logger *zap.Logger, lookupdPollIn
 	}
 	nsqGoLogInfo("nsq_go start successful !!!!")
 }
+
+
+

@@ -65,8 +65,8 @@ func InitNsqProducer(nsqConfig *nsq.Config, updateNsqInterval int) {
 	nsqGoLogInfo("init nsq producer successful !!!!")
 }
 
-//发送消息 //采用轮训发送
-func NsqPush(topic string, data []byte) bool {
+//发送消息 //采用轮训发送    //isSync是否同步参数 isSync填写该值就是同步，不填默认异步
+func NsqPush(topic string, data []byte, isSync ...interface{}) bool {
 	//给一个nsqd发送即可,若发送失败就发送下一个
 	for i := 0; i < len(producerList); i++ {
 		nsqGoLogInfo("【nsq】发送消息", zap.String("Topic", topic), zap.Int64("time", time.Now().Unix()))
@@ -81,16 +81,27 @@ func NsqPush(topic string, data []byte) bool {
 			nsqGoLogError("producer nil")
 			continue
 		}
+		if producer.producer == nil {
+			nsqGoLogError("producer producer nil")
+			continue
+		}
 		//防止消费者还未发现新添加的nsqd
 		if producer.startTime+NsqGo.LookupdPollInterval >= time.Now().Unix() {
 			continue
 		}
-		err := producer.producer.PublishAsync(topic, data, nil)
-		if err != nil {
-			nsqGoLogError("nsq  PublishAsync err", zap.Error(err))
-			continue
+		if len(isSync) > 0 {
+			err := producer.producer.Publish(topic, data)
+			if err != nil {
+				nsqGoLogError("nsq  PublishAsync err", zap.Error(err))
+				continue
+			}
+		} else {
+			err := producer.producer.PublishAsync(topic, data, nil)
+			if err != nil {
+				nsqGoLogError("nsq  PublishAsync err", zap.Error(err))
+				continue
+			}
 		}
-		//antnet.LogInfo("【nsq】发送消息完成", zap.String("Topic", topic), zap.Int64("time", antnet.Timestamp))
 		return true
 	}
 	nsqGoLogError("all producer Publish err", zap.Int("len", len(producerList)))
@@ -167,8 +178,7 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 	for address, _ := range addNodesTcpMap {
 		NsqGo.NsqdTcpAddress = append(NsqGo.NsqdTcpAddress, address)
 		//增加nsqd的生产者
-		conf := nsq.NewConfig()
-		producer, err := nsq.NewProducer(address, conf)
+		producer, err := nsq.NewProducer(address, nsqConfig)
 		if err != nil {
 			nsqGoLogError("create producer failed, err", zap.Error(err))
 		}
