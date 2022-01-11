@@ -237,4 +237,15 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 		//重置currIndex
 		myNsqdMgr.currIndex = 0
 	}
+
+}
+
+//获得nsqd数量
+func GetNsqdNum() int {
+	if myNsqdMgr == nil {
+		nsqGoLogError("nsqdMgr nil")
+		return 0
+	}
+	return len(myNsqdMgr.producerList)
+
 }
