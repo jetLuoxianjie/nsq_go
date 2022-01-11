@@ -88,7 +88,7 @@ func nsqGoSetTimeout(interval int, fn func(...interface{}) int, args ...interfac
 	go func() {
 		var tick *time.Timer
 		for interval > 0 {
-			tick = time.NewTimer(time.Millisecond * time.Duration(interval))
+			tick = time.NewTimer(time.Second * time.Duration(interval))
 			select {
 			case <-tick.C:
 				tick.Stop()
