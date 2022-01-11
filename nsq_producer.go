@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-var nsqdMgr *NsqdMgr
+var myNsqdMgr *nsqdMgr
 
 //nsqd 管理
-type NsqdMgr struct {
+type nsqdMgr struct {
 	//生产者nsq列表
-	producerList []*NsqdProducer
+	producerList []*nsqdProducer
 	currIndex    int //当前发消息的生产者下标
 
 	//记录当前所有nsq的 信息 (主要用于判断更新的nsq是否新增)
@@ -24,18 +24,18 @@ type NsqdMgr struct {
 }
 
 //nsqd生成者
-type NsqdProducer struct {
+type nsqdProducer struct {
 	startTime int64 //启动时间
 	producer  *nsq.Producer
 }
 
 //nsq节点列表 (用于从 nsqlookup 获取消息 解析使用)
-type NsqNodeList struct {
-	Producers []*NsqdNode `json:"producers"`
+type nsqNodeList struct {
+	Producers []*nsqdNode `json:"producers"`
 }
 
 //nsqd节点信息
-type NsqdNode struct {
+type nsqdNode struct {
 	RemoteAddress    string   `json:"remote_address"` //nsqd的远端地址(ip+端口)
 	HostName         string   `json:"host_name"`
 	BroadcastAddress string   `json:"broadcast_address"`
@@ -55,8 +55,8 @@ func InitNsqProducer(nsqConfig *nsq.Config, updateNsqInterval int) {
 		nsqGoLogError("nsqConfig nil")
 		return
 	}
-	if nsqdMgr == nil {
-		nsqdMgr = &NsqdMgr{
+	if myNsqdMgr == nil {
+		myNsqdMgr = &nsqdMgr{
 			currIndex:    0,
 			nodesTcpMap:  make(map[string]struct{}),
 			nodesHttpMap: make(map[string]struct{}),
@@ -74,22 +74,22 @@ func InitNsqProducer(nsqConfig *nsq.Config, updateNsqInterval int) {
 
 //发送消息 //采用轮训发送    //isSync是否同步参数 isSync填写该值就是同步，不填默认异步
 func NsqPush(topic string, data []byte, isSync ...interface{}) bool {
-	if nsqdMgr == nil {
+	if myNsqdMgr == nil {
 		nsqGoLogError("nsqdMgr nil")
 		return false
 	}
-	lenList := len(nsqdMgr.producerList)
+	lenList := len(myNsqdMgr.producerList)
 	//给一个nsqd发送即可,若发送失败就发送下一个
 	for i := 0; i < lenList; i++ {
 		nsqGoLogInfo("【nsq】发送消息", zap.String("Topic", topic), zap.Int64("time", time.Now().Unix()))
 		//这次感觉使不使用原子操作都影响不大
-		nsqdMgr.currIndex++
-		nsqdMgr.currIndex = nsqdMgr.currIndex % lenList
-		if nsqdMgr.currIndex > lenList-1 {
+		myNsqdMgr.currIndex++
+		myNsqdMgr.currIndex = myNsqdMgr.currIndex % lenList
+		if myNsqdMgr.currIndex > lenList-1 {
 			nsqGoLogError("currIndex out")
 			return false
 		}
-		nsqGoProducer := nsqdMgr.producerList[nsqdMgr.currIndex]
+		nsqGoProducer := myNsqdMgr.producerList[myNsqdMgr.currIndex]
 		if nsqGoProducer == nil {
 			nsqGoLogError("nsqGoProducer nil")
 			continue
@@ -131,7 +131,7 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 		nsqGoLogError("nsqGo not start")
 		return
 	}
-	if nsqdMgr == nil {
+	if myNsqdMgr == nil {
 		nsqGoLogError("nsqdMgr nil")
 		return
 	}
@@ -146,7 +146,7 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 		if len(body) == 0 {
 			continue
 		}
-		nl := &NsqNodeList{}
+		nl := &nsqNodeList{}
 		err := json.Unmarshal(body, nl)
 		if err != nil {
 			nsqGoLogError("Unmarshal err", zap.Error(err))
@@ -167,8 +167,8 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 			}
 			tcpAddress := fmt.Sprintf("%v:%v", ip, v.TcpPort)
 			//填充tcpMap
-			if _, ok := nsqdMgr.nodesTcpMap[tcpAddress]; !ok {
-				nsqdMgr.nodesTcpMap[tcpAddress] = struct{}{}
+			if _, ok := myNsqdMgr.nodesTcpMap[tcpAddress]; !ok {
+				myNsqdMgr.nodesTcpMap[tcpAddress] = struct{}{}
 				//增加Tcp
 				addNodesTcpMap[tcpAddress] = struct{}{}
 			}
@@ -177,8 +177,8 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 
 			httpAddress := fmt.Sprintf("%v:%v", ip, v.HttpPort)
 			//填充HttpMap
-			if _, ok := nsqdMgr.nodesHttpMap[httpAddress]; !ok {
-				nsqdMgr.nodesHttpMap[httpAddress] = struct{}{}
+			if _, ok := myNsqdMgr.nodesHttpMap[httpAddress]; !ok {
+				myNsqdMgr.nodesHttpMap[httpAddress] = struct{}{}
 				//增加http
 				addNodesHttpMap[httpAddress] = struct{}{}
 			}
@@ -198,7 +198,7 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 			//第一次可以立即使用
 			startTime = 0
 		}
-		nsqdMgr.producerList = append(nsqdMgr.producerList, &NsqdProducer{
+		myNsqdMgr.producerList = append(myNsqdMgr.producerList, &nsqdProducer{
 			startTime: startTime,
 			producer:  producer,
 		})
@@ -208,7 +208,7 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 	}
 
 	//删除没有注册的
-	for i, p := range nsqdMgr.producerList {
+	for i, p := range myNsqdMgr.producerList {
 		if p == nil || p.producer == nil {
 			nsqGoLogError("nil", zap.Int("index", i))
 			continue
@@ -224,17 +224,17 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 			continue
 		}
 		//判断下 但是基本不可能  //slice中 如: arr:=[]int{1}  arr[len(arr):]这样是合法的√   arr[len(arr)]这样才是下标越界×
-		if i+1 > len(nsqdMgr.producerList) {
-			nsqGoLogError("arr index out", zap.Int("i+1", i+1), zap.Int("len", len(nsqdMgr.producerList)))
+		if i+1 > len(myNsqdMgr.producerList) {
+			nsqGoLogError("arr index out", zap.Int("i+1", i+1), zap.Int("len", len(myNsqdMgr.producerList)))
 			continue
 		}
 		//停止
 		p.producer.Stop()
 		//producerList 删除
-		nsqdMgr.producerList = append(nsqdMgr.producerList[:i], nsqdMgr.producerList[i+1:]...)
+		myNsqdMgr.producerList = append(myNsqdMgr.producerList[:i], myNsqdMgr.producerList[i+1:]...)
 		//NodesTcpMap 删除
-		delete(nsqdMgr.nodesTcpMap, p.producer.String())
+		delete(myNsqdMgr.nodesTcpMap, p.producer.String())
 		//重置currIndex
-		nsqdMgr.currIndex = 0
+		myNsqdMgr.currIndex = 0
 	}
 }
