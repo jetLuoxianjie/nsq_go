@@ -198,6 +198,10 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 
 	//删除没有注册的
 	for i, p := range producerList {
+		if p == nil || p.producer == nil {
+			nsqGoLogError("nil", zap.Int("index", i))
+			continue
+		}
 		isDel := true
 		for add, _ := range currNodesTcpMap {
 			if p.producer.String() == add {
@@ -213,6 +217,8 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 			nsqGoLogError("arr index out", zap.Int("i+1", i+1), zap.Int("len", len(producerList)))
 			continue
 		}
+		//停止
+		p.producer.Stop()
 		//producerList 删除
 		producerList = append(producerList[:i], producerList[i+1:]...)
 		//NodesTcpMap 删除
