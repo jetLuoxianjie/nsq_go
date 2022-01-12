@@ -29,11 +29,11 @@ func nsqGoHttpPost(url string, data interface{}, contentType string) string {
 //http get请求
 func nsqGoHttpGet(url string) []byte {
 	resp, err := http.Get(url)
-	defer resp.Body.Close()
 	if err != nil {
 		nsqGoLogError("nsqLookup get err", zap.Error(err))
 		return nil
 	}
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		nsqGoLogError("get err", zap.Error(err))
