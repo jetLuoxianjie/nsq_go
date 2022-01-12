@@ -11,9 +11,12 @@ import (
 //消费者处理函数啊
 type nsqConsumerFunc func(msg *nsq.Message)
 
-//nsq的消息处理
-var nsqHandlerMap = map[string]nsqConsumerFunc{} //key 是话题 value是一个处理函数
-var nsqLock sync.RWMutex
+var myNsqConsumerMgr *nsqConsumerMgr
+//nsq的消息处理管理者
+type nsqConsumerMgr struct {
+	nsqHandlerMap map[string]nsqConsumerFunc //key 是话题 value是一个处理函数
+	nsqLock       sync.RWMutex
+}
 
 //nsq消费者
 type nsqConsumerHandler struct {
@@ -37,10 +40,15 @@ func NewNsqConsumer(channel, topic string, fn nsqConsumerFunc, isEphemeral bool,
 		address := fmt.Sprintf("http://%s/topic/create?topic=%s", v, topic)
 		nsqGoHttpPost(address, nil, "application/json")
 	}
+	if myNsqConsumerMgr == nil{
+		myNsqConsumerMgr = &nsqConsumerMgr{
+			nsqHandlerMap: make(map[string]nsqConsumerFunc),
+		}
+	}
 	//注册handler
-	nsqLock.Lock()
-	nsqHandlerMap[topic] = fn
-	nsqLock.Unlock()
+	myNsqConsumerMgr.nsqLock.Lock()
+	myNsqConsumerMgr.nsqHandlerMap[topic] = fn
+	myNsqConsumerMgr.nsqLock.Unlock()
 	if isEphemeral {
 		channel = fmt.Sprintf("%s#ephemeral", channel)
 	}
@@ -71,10 +79,10 @@ func NewNsqConsumer(channel, topic string, fn nsqConsumerFunc, isEphemeral bool,
 
 // HandleMessage 是需要实现的处理消息的方法
 func (n *nsqConsumerHandler) HandleMessage(msg *nsq.Message) (err error) {
-	nsqLock.RLock()
-	defer nsqLock.RUnlock()
+	myNsqConsumerMgr.nsqLock.RLock()
+	defer myNsqConsumerMgr.nsqLock.RUnlock()
 	nsqGoLogInfo("【nsq】消费者处理", zap.String("Topic", n.topic), zap.Int64("time", time.Now().Unix()))
-	if fn, ok := nsqHandlerMap[n.topic]; ok {
+	if fn, ok := myNsqConsumerMgr.nsqHandlerMap[n.topic]; ok {
 		fn(msg)
 	} else {
 		nsqGoLogError("nsq topic Handler nil", zap.String("topic", n.topic))

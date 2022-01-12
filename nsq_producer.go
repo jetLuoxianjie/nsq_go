@@ -237,7 +237,6 @@ func updateNsqdNodes(nsqConfig *nsq.Config) {
 		//重置currIndex
 		myNsqdMgr.currIndex = 0
 	}
-
 }
 
 //获得nsqd数量
